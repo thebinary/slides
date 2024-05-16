@@ -161,6 +161,48 @@ func (m Model) navigate(keyPress string) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+func (m Model) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	keyPress := msg.String()
+
+	if m.Search.Active {
+		switch msg.Type {
+		case tea.KeyEnter:
+			// execute current buffer
+			if m.Search.Query() != "" {
+				m.Search.Execute(&m)
+			} else {
+				m.Search.Done()
+			}
+			// cancel search
+			return m, nil
+		case tea.KeyCtrlC, tea.KeyEscape:
+			// quit command mode
+			m.Search.SetQuery("")
+			m.Search.Done()
+			return m, nil
+		}
+
+		var cmd tea.Cmd
+		m.Search.SearchTextInput, cmd = m.Search.SearchTextInput.Update(msg)
+		return m, cmd
+	}
+
+	switch keyPress {
+	case "/":
+		return m.beginSearch()
+	case "ctrl+n":
+		return m.searchNextOccurrence()
+	case "ctrl+e":
+		return m.runCodeBlocks()
+	case "y":
+		return m.copyCodeBlocks()
+	case "ctrl+c", "q":
+		return m, tea.Quit
+	default:
+		return m.navigate(keyPress)
+	}
+}
+
 // Update updates the presentation model.
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
@@ -170,45 +212,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tea.KeyMsg:
-		keyPress := msg.String()
+		return m.handleKeyMsg(msg)
 
-		if m.Search.Active {
-			switch msg.Type {
-			case tea.KeyEnter:
-				// execute current buffer
-				if m.Search.Query() != "" {
-					m.Search.Execute(&m)
-				} else {
-					m.Search.Done()
-				}
-				// cancel search
-				return m, nil
-			case tea.KeyCtrlC, tea.KeyEscape:
-				// quit command mode
-				m.Search.SetQuery("")
-				m.Search.Done()
-				return m, nil
-			}
-
-			var cmd tea.Cmd
-			m.Search.SearchTextInput, cmd = m.Search.SearchTextInput.Update(msg)
-			return m, cmd
-		}
-
-		switch keyPress {
-		case "/":
-			return m.beginSearch()
-		case "ctrl+n":
-			return m.searchNextOccurrence()
-		case "ctrl+e":
-			return m.runCodeBlocks()
-		case "y":
-			return m.copyCodeBlocks()
-		case "ctrl+c", "q":
-			return m, tea.Quit
-		default:
-			return m.navigate(keyPress)
-		}
 	case fileWatchMsg:
 		newFileInfo, err := os.Stat(m.FileName)
 		if err == nil && newFileInfo.ModTime() != fileInfo.ModTime() {
