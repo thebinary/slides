@@ -27,11 +27,14 @@ var (
 				fileName = args[0]
 			}
 
+			isRemoteOnly := isRemoteControlledOnly()
+
 			presentation := model.Model{
-				Page:     0,
-				Date:     time.Now().Format("2006-01-02"),
-				FileName: fileName,
-				Search:   navigation.NewSearch(),
+				Page:             0,
+				Date:             time.Now().Format("2006-01-02"),
+				FileName:         fileName,
+				Search:           navigation.NewSearch(),
+				DisableLocalKeys: isRemoteOnly,
 			}
 			err = presentation.Load()
 			if err != nil {
@@ -47,6 +50,17 @@ var (
 		},
 	}
 )
+
+// isRemoteControlledOnly checks if SLIDES_REMOTE_ONLY environment
+// var is set to true values
+func isRemoteControlledOnly() bool {
+	remoteControlledOnly := os.Getenv("SLIDES_REMOTE_ONLY")
+	switch remoteControlledOnly {
+	case "y", "Y", "yes", "YES", "1", "on", "ON", "true", "TRUE", "t", "T":
+		return true
+	}
+	return false
+}
 
 // initialize and start socket remote listener if required
 func initRemoteListener(p *tea.Program) (remoteListener *remote.SocketRemoteListener) {
