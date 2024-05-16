@@ -49,6 +49,9 @@ type Model struct {
 	// original slides, it will be displayed on a slide and reset on page change
 	VirtualText string
 	Search      navigation.Search
+	// DisableLocalKeys is used to disable keys locally in slides session.
+	// Meant to be used in conjuction with Remote Control.
+	DisableLocalKeys bool
 }
 
 type fileWatchMsg struct{}
@@ -223,7 +226,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.handleRemoteMsg(msg)
 
 	case tea.KeyMsg:
-		return m.handleKeyMsg(msg)
+		if !m.DisableLocalKeys {
+			return m.handleKeyMsg(msg)
+		}
 
 	case fileWatchMsg:
 		newFileInfo, err := os.Stat(m.FileName)
