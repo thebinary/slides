@@ -108,6 +108,58 @@ func (m *Model) Load() error {
 
 	return nil
 }
+func (m Model) beginSearch() (tea.Model, tea.Cmd) {
+	// Begin Search
+	m.Search.Begin()
+	m.Search.SearchTextInput.Focus()
+	return m, nil
+}
+
+func (m Model) searchNextOccurrence() (tea.Model, tea.Cmd) {
+	// Go to next occurrence
+	m.Search.Execute(&m)
+	return m, nil
+}
+
+func (m Model) runCodeBlocks() (tea.Model, tea.Cmd) {
+	// Run code blocks
+	blocks, err := code.Parse(m.Slides[m.Page])
+	if err != nil {
+		// We couldn't parse the code block on the screen
+		m.VirtualText = "\n" + err.Error()
+		return m, nil
+	}
+	var outs []string
+	for _, block := range blocks {
+		res := code.Execute(block)
+		outs = append(outs, res.Out)
+	}
+	m.VirtualText = strings.Join(outs, "\n")
+	return m, nil
+}
+
+func (m Model) copyCodeBlocks() (tea.Model, tea.Cmd) {
+	// Copy code blocks
+	blocks, err := code.Parse(m.Slides[m.Page])
+	if err != nil {
+		return m, nil
+	}
+	for _, b := range blocks {
+		_ = clipboard.WriteAll(b.Code)
+	}
+	return m, nil
+}
+
+func (m Model) navigate(keyPress string) (tea.Model, tea.Cmd) {
+	newState := navigation.Navigate(navigation.State{
+		Buffer:      m.buffer,
+		Page:        m.Page,
+		TotalSlides: len(m.Slides),
+	}, keyPress)
+	m.buffer = newState.Buffer
+	m.SetPage(newState.Page)
+	return m, nil
+}
 
 // Update updates the presentation model.
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -145,48 +197,18 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		switch keyPress {
 		case "/":
-			// Begin search
-			m.Search.Begin()
-			m.Search.SearchTextInput.Focus()
-			return m, nil
+			return m.beginSearch()
 		case "ctrl+n":
-			// Go to next occurrence
-			m.Search.Execute(&m)
+			return m.searchNextOccurrence()
 		case "ctrl+e":
-			// Run code blocks
-			blocks, err := code.Parse(m.Slides[m.Page])
-			if err != nil {
-				// We couldn't parse the code block on the screen
-				m.VirtualText = "\n" + err.Error()
-				return m, nil
-			}
-			var outs []string
-			for _, block := range blocks {
-				res := code.Execute(block)
-				outs = append(outs, res.Out)
-			}
-			m.VirtualText = strings.Join(outs, "\n")
+			return m.runCodeBlocks()
 		case "y":
-			blocks, err := code.Parse(m.Slides[m.Page])
-			if err != nil {
-				return m, nil
-			}
-			for _, b := range blocks {
-				_ = clipboard.WriteAll(b.Code)
-			}
-			return m, nil
+			return m.copyCodeBlocks()
 		case "ctrl+c", "q":
 			return m, tea.Quit
 		default:
-			newState := navigation.Navigate(navigation.State{
-				Buffer:      m.buffer,
-				Page:        m.Page,
-				TotalSlides: len(m.Slides),
-			}, keyPress)
-			m.buffer = newState.Buffer
-			m.SetPage(newState.Page)
+			return m.navigate(keyPress)
 		}
-
 	case fileWatchMsg:
 		newFileInfo, err := os.Stat(m.FileName)
 		if err == nil && newFileInfo.ModTime() != fileInfo.ModTime() {
