@@ -53,6 +53,9 @@ type Model struct {
 
 type fileWatchMsg struct{}
 
+// Used by Remote Relay
+type RemoteMsg tea.KeyMsg
+
 var fileInfo os.FileInfo
 
 // Init initializes the model and begins watching the slides file for changes
@@ -203,6 +206,11 @@ func (m Model) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	}
 }
 
+func (m Model) handleRemoteMsg(msg RemoteMsg) (tea.Model, tea.Cmd) {
+	keyMsg := tea.KeyMsg(msg)
+	return m.handleKeyMsg(keyMsg)
+}
+
 // Update updates the presentation model.
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
@@ -210,6 +218,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.viewport.Width = msg.Width
 		m.viewport.Height = msg.Height
 		return m, nil
+
+	case RemoteMsg:
+		return m.handleRemoteMsg(msg)
 
 	case tea.KeyMsg:
 		return m.handleKeyMsg(msg)
